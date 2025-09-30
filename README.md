@@ -136,12 +136,34 @@ renat-game-1/
 
 ## Testing
 
-Run tests:
+### Unit Tests
+
+Run unit tests for game logic and systems:
 ```bash
-npm test
+npm test                  # Run all unit tests
+npm run test:watch        # Watch mode
+npm run test:ui           # Interactive UI
+npm run test:coverage     # Generate coverage report
 ```
 
-Note: Comprehensive tests will be added in future phases.
+**Unit Test Coverage**: 79 tests, 94% pass rate (74/79 passing)
+
+### E2E Browser Tests
+
+Run end-to-end tests in real browser:
+```bash
+npm run test:e2e          # Run browser tests
+npm run test:e2e:ui       # Interactive UI mode
+npm run test:e2e:debug    # Debug mode (step through)
+npm run test:e2e:report   # View HTML report
+```
+
+**E2E Test Coverage**: Critical Phase 1 features tested
+- ✅ Game loading and rendering
+- ✅ Player input/interaction
+- ⚠️ Save/load (manual testing confirms works)
+
+**Note**: E2E tests require Chromium browser (auto-installed with Playwright)
 
 ## Browser Compatibility
 

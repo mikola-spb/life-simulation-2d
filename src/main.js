@@ -61,6 +61,16 @@ const config = {
 // Initialize game
 const game = new Phaser.Game(config);
 
+// Expose game instance to window for E2E testing immediately
+if (typeof window !== 'undefined') {
+  window.game = game;
+  // Set a flag when game is fully initialized
+  window.gameReady = false;
+  game.events.once('ready', () => {
+    window.gameReady = true;
+  });
+}
+
 // Handle window resize
 window.addEventListener('resize', () => {
   const newDimensions = getGameDimensions();
