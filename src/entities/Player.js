@@ -1,36 +1,34 @@
 import Phaser from 'phaser';
 import GameConfig from '../config.js';
+import Appearance from './Appearance.js';
+import SpriteGenerator from '../utils/SpriteGenerator.js';
 
 /**
  * Player Entity
  * Handles player character creation, movement, and animations
  */
 export default class Player {
-  constructor(scene, x, y) {
+  constructor(scene, x, y, appearanceConfig = null) {
     this.scene = scene;
 
-    // Create player sprite (using a simple colored rectangle for now)
-    this.sprite = scene.add.rectangle(x, y, GameConfig.player.size, GameConfig.player.size, 0x4a9eff);
+    // Create appearance
+    this.appearance = appearanceConfig ? new Appearance(appearanceConfig) : new Appearance();
+
+    // Create layered character sprite using SpriteGenerator
+    this.sprite = SpriteGenerator.createCharacter(scene, x, y, this.appearance);
     scene.physics.add.existing(this.sprite);
 
     // Configure physics
     this.sprite.body.setCollideWorldBounds(true);
-    this.sprite.body.setSize(GameConfig.player.size, GameConfig.player.size);
+    this.sprite.body.setSize(GameConfig.player.size, GameConfig.player.size + 16);
 
     // Player state
     this.speed = GameConfig.player.speed;
     this.isMoving = false;
     this.direction = { x: 0, y: 0 };
 
-    // Create a simple direction indicator (small triangle)
-    this.directionIndicator = scene.add.triangle(
-      x,
-      y - GameConfig.player.size / 2 - 5,
-      0, 0,
-      -5, 10,
-      5, 10,
-      0xffffff
-    );
+    // Create direction indicator
+    this.directionIndicator = SpriteGenerator.createDirectionIndicator(scene, x, y);
   }
 
   /**
@@ -39,7 +37,7 @@ export default class Player {
   update() {
     // Update direction indicator position
     this.directionIndicator.x = this.sprite.x;
-    this.directionIndicator.y = this.sprite.y - GameConfig.player.size / 2 - 5;
+    this.directionIndicator.y = this.sprite.y - 30;
 
     // Rotate direction indicator based on movement
     if (this.isMoving) {
@@ -100,13 +98,23 @@ export default class Player {
   }
 
   /**
+   * Update character appearance
+   * @param {Appearance} appearance
+   */
+  updateAppearance(appearance) {
+    this.appearance = appearance;
+    SpriteGenerator.updateAppearance(this.sprite, appearance);
+  }
+
+  /**
    * Get player data for saving
    * @returns {object}
    */
   getSaveData() {
     return {
       x: this.sprite.x,
-      y: this.sprite.y
+      y: this.sprite.y,
+      appearance: this.appearance.getSaveData()
     };
   }
 
@@ -117,6 +125,10 @@ export default class Player {
   loadSaveData(data) {
     if (data.x !== undefined && data.y !== undefined) {
       this.setPosition(data.x, data.y);
+    }
+    if (data.appearance) {
+      this.appearance.loadSaveData(data.appearance);
+      this.updateAppearance(this.appearance);
     }
   }
 
