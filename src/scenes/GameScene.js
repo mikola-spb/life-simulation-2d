@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import Player from '../entities/Player.js';
 import InputController from '../systems/InputController.js';
 import SaveSystem from '../systems/SaveSystem.js';
+import LocationSystem from '../systems/LocationSystem.js';
 
 /**
  * GameScene - Main game scene where gameplay happens
@@ -12,35 +13,40 @@ export default class GameScene extends Phaser.Scene {
     this.player = null;
     this.inputController = null;
     this.saveSystem = null;
+    this.locationSystem = null;
     this.autoSaveTimer = null;
-    this.obstacles = []; // Store obstacles for later collider setup
+    this.obstacles = []; // Store obstacles for later collider setup (deprecated - now handled by LocationSystem)
+    this.isTransitioning = false;
   }
 
   create() {
     // Initialize systems
     this.saveSystem = new SaveSystem();
     this.inputController = new InputController(this);
+    this.locationSystem = new LocationSystem(this);
 
-    // Create world boundaries
-    this.physics.world.setBounds(0, 0, 1600, 1200);
+    // Try to load saved game to get starting location
+    const savedGameState = this.saveSystem.load();
+    const startingLocationId = (savedGameState && savedGameState.currentLocationId)
+      ? savedGameState.currentLocationId
+      : 'home';
 
-    // Create a simple ground/environment (just visuals, no colliders yet)
-    this.createEnvironment();
+    // Load the starting location
+    const spawnPoint = this.locationSystem.loadLocation(startingLocationId);
 
-    // Create player FIRST
-    const startX = 400;
-    const startY = 300;
-    this.player = new Player(this, startX, startY);
+    // Create player at spawn point
+    this.player = new Player(this, spawnPoint.x, spawnPoint.y);
 
-    // NOW create obstacles with colliders (player exists now)
-    this.createObstacleColliders();
+    // Create obstacle colliders (player exists now)
+    this.locationSystem.createObstacleColliders(this.player.sprite);
 
-    // Try to load saved game
-    this.loadGame();
+    // Load saved player state (position and appearance)
+    if (savedGameState && savedGameState.player) {
+      this.player.loadSaveData(savedGameState.player);
+    }
 
     // Set up camera to follow player
     this.cameras.main.startFollow(this.player.sprite);
-    this.cameras.main.setBounds(0, 0, 1600, 1200);
 
     // Add UI instructions
     this.addInstructions();
@@ -64,58 +70,13 @@ export default class GameScene extends Phaser.Scene {
         this.saveGame();
       }
     });
-  }
 
-  /**
-   * Create simple environment with visual boundaries
-   */
-  createEnvironment() {
-    // Create ground grid
-    const graphics = this.add.graphics();
-    graphics.lineStyle(1, 0x555555, 0.5);
-
-    const gridSize = 100;
-    const worldWidth = 1600;
-    const worldHeight = 1200;
-
-    // Vertical lines
-    for (let x = 0; x <= worldWidth; x += gridSize) {
-      graphics.lineBetween(x, 0, x, worldHeight);
-    }
-
-    // Horizontal lines
-    for (let y = 0; y <= worldHeight; y += gridSize) {
-      graphics.lineBetween(0, y, worldWidth, y);
-    }
-
-    // Draw world boundaries
-    graphics.lineStyle(3, 0xffffff, 1);
-    graphics.strokeRect(0, 0, worldWidth, worldHeight);
-
-    // Create obstacle visuals (colliders added later when player exists)
-    const obstacleData = [
-      { x: 300, y: 300, width: 100, height: 100, color: 0x8b4513 },
-      { x: 800, y: 400, width: 150, height: 80, color: 0x8b4513 },
-      { x: 1200, y: 600, width: 120, height: 120, color: 0x8b4513 },
-      { x: 600, y: 800, width: 200, height: 60, color: 0x8b4513 }
-    ];
-
-    // Create obstacle rectangles and store them
-    obstacleData.forEach(obs => {
-      const obstacle = this.add.rectangle(obs.x, obs.y, obs.width, obs.height, obs.color);
-      this.physics.add.existing(obstacle, true); // true = static body
-      this.obstacles.push(obstacle);
+    // Add interaction key listener
+    this.input.keyboard.on('keydown-E', () => {
+      this.handleInteraction();
     });
   }
 
-  /**
-   * Create colliders for obstacles (call AFTER player is created)
-   */
-  createObstacleColliders() {
-    this.obstacles.forEach(obstacle => {
-      this.physics.add.collider(this.player.sprite, obstacle);
-    });
-  }
 
   /**
    * Add on-screen instructions
@@ -151,7 +112,7 @@ export default class GameScene extends Phaser.Scene {
    * Update game state
    */
   update() {
-    if (!this.player || !this.inputController) {
+    if (!this.player || !this.inputController || this.isTransitioning) {
       return;
     }
 
@@ -167,6 +128,64 @@ export default class GameScene extends Phaser.Scene {
 
     // Update player
     this.player.update();
+
+    // Check for nearby transitions
+    const playerPos = this.player.getPosition();
+    const nearbyTransition = this.locationSystem.checkTransitionProximity(playerPos);
+
+    if (nearbyTransition) {
+      this.locationSystem.showInteractionPrompt(nearbyTransition);
+    } else {
+      this.locationSystem.hideInteractionPrompt();
+    }
+  }
+
+  /**
+   * Handle interaction with active transition
+   */
+  handleInteraction() {
+    if (this.isTransitioning) {
+      return;
+    }
+
+    const activeTransition = this.locationSystem.getActiveTransition();
+    if (activeTransition) {
+      this.transitionToLocation(activeTransition.to, activeTransition.toSpawn);
+    }
+  }
+
+  /**
+   * Transition to a new location
+   * @param {string} locationId
+   * @param {object} spawnPoint - {x, y}
+   */
+  transitionToLocation(locationId, spawnPoint) {
+    this.isTransitioning = true;
+
+    // Fade out camera
+    this.cameras.main.fadeOut(300, 0, 0, 0);
+
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      // Load new location
+      const newSpawnPoint = this.locationSystem.loadLocation(locationId, spawnPoint);
+
+      // Move player to new spawn point
+      this.player.setPosition(newSpawnPoint.x, newSpawnPoint.y);
+      this.player.stop();
+
+      // Recreate colliders for new location
+      this.locationSystem.createObstacleColliders(this.player.sprite);
+
+      // Auto-save after location change
+      this.saveGame();
+
+      // Fade in camera
+      this.cameras.main.fadeIn(300, 0, 0, 0);
+
+      this.cameras.main.once('camerafadeincomplete', () => {
+        this.isTransitioning = false;
+      });
+    });
   }
 
   /**
@@ -175,6 +194,7 @@ export default class GameScene extends Phaser.Scene {
   saveGame() {
     const gameState = {
       player: this.player.getSaveData(),
+      currentLocationId: this.locationSystem.getCurrentLocationId(),
       timestamp: Date.now()
     };
 
@@ -184,18 +204,6 @@ export default class GameScene extends Phaser.Scene {
       this.showSaveIndicator('Game Saved!');
     } else {
       this.showSaveIndicator('Save Failed!', 0xff0000);
-    }
-  }
-
-  /**
-   * Load saved game state
-   */
-  loadGame() {
-    const gameState = this.saveSystem.load();
-
-    if (gameState && gameState.player) {
-      this.player.loadSaveData(gameState.player);
-      console.log('Game loaded from save');
     }
   }
 
@@ -232,6 +240,9 @@ export default class GameScene extends Phaser.Scene {
     // Clean up resources
     if (this.inputController) {
       this.inputController.destroy();
+    }
+    if (this.locationSystem) {
+      this.locationSystem.destroy();
     }
     if (this.autoSaveTimer) {
       this.autoSaveTimer.remove();
