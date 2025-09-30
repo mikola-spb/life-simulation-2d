@@ -13,6 +13,7 @@ export default class GameScene extends Phaser.Scene {
     this.inputController = null;
     this.saveSystem = null;
     this.autoSaveTimer = null;
+    this.obstacles = []; // Store obstacles for later collider setup
   }
 
   create() {
@@ -23,13 +24,16 @@ export default class GameScene extends Phaser.Scene {
     // Create world boundaries
     this.physics.world.setBounds(0, 0, 1600, 1200);
 
-    // Create a simple ground/environment
+    // Create a simple ground/environment (just visuals, no colliders yet)
     this.createEnvironment();
 
-    // Create player
+    // Create player FIRST
     const startX = 400;
     const startY = 300;
     this.player = new Player(this, startX, startY);
+
+    // NOW create obstacles with colliders (player exists now)
+    this.createObstacleColliders();
 
     // Try to load saved game
     this.loadGame();
@@ -88,24 +92,27 @@ export default class GameScene extends Phaser.Scene {
     graphics.lineStyle(3, 0xffffff, 1);
     graphics.strokeRect(0, 0, worldWidth, worldHeight);
 
-    // Add some placeholder objects for collision testing
-    this.createObstacles();
-  }
-
-  /**
-   * Create simple obstacles for testing collision
-   */
-  createObstacles() {
-    const obstacles = [
+    // Create obstacle visuals (colliders added later when player exists)
+    const obstacleData = [
       { x: 300, y: 300, width: 100, height: 100, color: 0x8b4513 },
       { x: 800, y: 400, width: 150, height: 80, color: 0x8b4513 },
       { x: 1200, y: 600, width: 120, height: 120, color: 0x8b4513 },
       { x: 600, y: 800, width: 200, height: 60, color: 0x8b4513 }
     ];
 
-    obstacles.forEach(obs => {
+    // Create obstacle rectangles and store them
+    obstacleData.forEach(obs => {
       const obstacle = this.add.rectangle(obs.x, obs.y, obs.width, obs.height, obs.color);
       this.physics.add.existing(obstacle, true); // true = static body
+      this.obstacles.push(obstacle);
+    });
+  }
+
+  /**
+   * Create colliders for obstacles (call AFTER player is created)
+   */
+  createObstacleColliders() {
+    this.obstacles.forEach(obstacle => {
       this.physics.add.collider(this.player.sprite, obstacle);
     });
   }
