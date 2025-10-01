@@ -125,7 +125,8 @@ test.describe('Phase 1: Basic Game Functionality', () => {
     console.log('Position before save:', positionBeforeSave);
 
     // Trigger manual save
-    await page.keyboard.press('Control+S');
+    await page.waitForSelector('#save-button', { timeout: 10000 });
+    await page.click('#save-button');
     await page.waitForTimeout(1000);
 
     // Check localStorage has save data

@@ -27,12 +27,12 @@ test.describe('Game Loading', () => {
   test('should initialize Phaser game', async ({ page }) => {
     await page.goto('/');
 
-    // Wait for the game to initialize
-    await page.waitForTimeout(2000);
+    // Wait for the game to be ready
+    await page.waitForFunction(() => window.gameReady === true, { timeout: 30000 });
 
     // Check that Phaser game instance exists
     const hasPhaserGame = await page.evaluate(() => {
-      return window.game !== undefined && window.game.constructor.name === 'Game';
+      return window.game && window.game.scene && window.gameReady === true;
     });
 
     expect(hasPhaserGame).toBeTruthy();
@@ -41,8 +41,8 @@ test.describe('Game Loading', () => {
   test('should load BootScene and transition to GameScene', async ({ page }) => {
     await page.goto('/');
 
-    // Wait for initial loading
-    await page.waitForTimeout(1000);
+    // Wait for game to be ready
+    await page.waitForFunction(() => window.gameReady === true, { timeout: 30000 });
 
     // Check that GameScene is running
     const isGameSceneActive = await page.evaluate(() => {
@@ -57,8 +57,8 @@ test.describe('Game Loading', () => {
   test('should display game instructions', async ({ page }) => {
     await page.goto('/');
 
-    // Wait for game to load
-    await page.waitForTimeout(2000);
+    // Wait for game to be ready
+    await page.waitForFunction(() => window.gameReady === true, { timeout: 30000 });
 
     // Take a screenshot to verify the game loaded
     await page.screenshot({ path: 'test-results/game-loaded.png' });
@@ -83,7 +83,7 @@ test.describe('Game Loading', () => {
     });
 
     await page.goto('/');
-    await page.waitForTimeout(2000);
+    await page.waitForFunction(() => window.gameReady === true, { timeout: 30000 });
 
     // Check for critical errors (ignore minor Phaser warnings)
     const criticalErrors = consoleErrors.filter(error =>

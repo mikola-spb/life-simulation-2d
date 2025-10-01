@@ -57,8 +57,8 @@ test.describe('Critical Path: Phase 1 Minimum Viable Features', () => {
     // Verify game is Phaser instance
     const isPhaserGame = await page.evaluate(() => {
       return window.game &&
-             window.game.constructor &&
-             window.game.constructor.name === 'Game';
+             window.game.scene &&
+             window.gameReady === true;
     });
     expect(isPhaserGame).toBe(true);
     console.log('✓ Game is Phaser instance');
@@ -152,8 +152,9 @@ test.describe('Critical Path: Phase 1 Minimum Viable Features', () => {
     expect(hasSaveSystem).toBe(true);
     console.log('✓ SaveSystem exists');
 
-    // Trigger save with Ctrl+S
-    await page.keyboard.press('Control+S');
+    // Trigger save with save button
+    await page.waitForSelector('#save-button', { timeout: 10000 });
+    await page.click('#save-button');
     await page.waitForTimeout(1500);
 
     // Check if data was written to localStorage
@@ -170,7 +171,7 @@ test.describe('Critical Path: Phase 1 Minimum Viable Features', () => {
       try {
         const data = localStorage.getItem('lifesim_save_v1');
         const parsed = JSON.parse(data);
-        return parsed.version && parsed.timestamp && parsed.data;
+        return !!(parsed.version && parsed.timestamp && parsed.data);
       } catch (e) {
         return false;
       }

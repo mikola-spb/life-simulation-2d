@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import GameConfig from '../config.js';
 import Player from '../entities/Player.js';
 import InputController from '../systems/InputController.js';
 import SaveSystem from '../systems/SaveSystem.js';
