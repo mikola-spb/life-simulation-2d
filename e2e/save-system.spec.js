@@ -14,7 +14,7 @@ test.describe('Save System', () => {
     await page.waitForTimeout(2000);
   });
 
-  test('should save game state manually with Ctrl+S', async ({ page }) => {
+  test('should save game state manually with save button', async ({ page }) => {
     // Move player to a new position
     await page.keyboard.down('ArrowRight');
     await page.waitForTimeout(500);
@@ -25,8 +25,8 @@ test.describe('Save System', () => {
       return scene.player.getPosition();
     });
 
-    // Trigger manual save with Ctrl+S
-    await page.keyboard.press('Control+S');
+    // Click the save button
+    await page.click('#save-button');
     await page.waitForTimeout(500);
 
     // Check that data was saved to localStorage
@@ -58,8 +58,8 @@ test.describe('Save System', () => {
       return scene.player.getPosition();
     });
 
-    // Save manually
-    await page.keyboard.press('Control+S');
+    // Save manually with button
+    await page.click('#save-button');
     await page.waitForTimeout(500);
 
     // Reload page
@@ -91,12 +91,15 @@ test.describe('Save System', () => {
     expect(hasAutoSaveTimer).toBe(true);
   });
 
-  test('should show save confirmation indicator', async ({ page }) => {
-    // Trigger save
-    await page.keyboard.press('Control+S');
+  test('should show save confirmation in button', async ({ page }) => {
+    // Click save button
+    await page.click('#save-button');
 
-    // Wait a moment for the indicator to appear
-    await page.waitForTimeout(1000);
+    // Wait and check button text changed to "✓ Saved!"
+    await page.waitForTimeout(500);
+
+    const buttonText = await page.textContent('#save-button');
+    expect(buttonText).toContain('Saved');
 
     // Check if save indicator was shown (it should be visible briefly)
     // We can check that the save method was called and succeeded
@@ -113,7 +116,7 @@ test.describe('Save System', () => {
     // First save
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(300);
-    await page.keyboard.press('Control+S');
+    await page.click('#save-button');
     await page.waitForTimeout(300);
 
     const firstSave = await page.evaluate(() => {
@@ -123,7 +126,7 @@ test.describe('Save System', () => {
     // Second save with different position
     await page.keyboard.press('ArrowDown');
     await page.waitForTimeout(300);
-    await page.keyboard.press('Control+S');
+    await page.click('#save-button');
     await page.waitForTimeout(300);
 
     const secondSave = await page.evaluate(() => {
@@ -161,7 +164,7 @@ test.describe('Save System', () => {
   });
 
   test('should include version and timestamp in save data', async ({ page }) => {
-    await page.keyboard.press('Control+S');
+    await page.click('#save-button');
     await page.waitForTimeout(300);
 
     const saveData = await page.evaluate(() => {

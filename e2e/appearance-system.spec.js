@@ -74,9 +74,9 @@ test.describe('Appearance System', () => {
       scene.player.updateAppearance(newAppearance);
     }, customAppearance);
 
-    // Trigger save
-    await page.keyboard.press('Control+KeyS');
-    await page.waitForTimeout(1000);
+    // Trigger save with button
+    await page.click('#save-button');
+    await page.waitForTimeout(500);
 
     // Reload page
     await page.reload();
@@ -89,6 +89,7 @@ test.describe('Appearance System', () => {
       return scene.player.appearance.getSaveData();
     });
 
+    // The loaded appearance should match what we saved
     expect(loadedAppearance).toEqual(customAppearance);
   });
 
