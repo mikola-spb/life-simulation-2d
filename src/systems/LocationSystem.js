@@ -1,8 +1,10 @@
 import { getLocation, locationExists } from '../data/locations.js';
+import { getNPCsForLocation } from '../data/npcs.js';
+import NPC from '../entities/NPC.js';
 
 /**
  * LocationSystem
- * Manages game locations, transitions, and environment loading
+ * Manages game locations, transitions, environment loading, and NPCs
  */
 export default class LocationSystem {
   constructor(scene) {
@@ -13,6 +15,7 @@ export default class LocationSystem {
     this.transitionZones = [];
     this.activeTransition = null;
     this.interactionPrompt = null;
+    this.npcs = []; // Array of NPC instances
   }
 
   /**
@@ -62,6 +65,9 @@ export default class LocationSystem {
 
     // Create transition zones
     this.createTransitionZones(location.transitions);
+
+    // Spawn NPCs for this location
+    this.spawnNPCsForLocation(locationId);
 
     // Determine spawn point
     const finalSpawnPoint = spawnPoint || location.spawnPoint;
@@ -225,6 +231,89 @@ export default class LocationSystem {
   }
 
   /**
+   * Spawn NPCs for a specific location
+   * @param {string} locationId
+   */
+  spawnNPCsForLocation(locationId) {
+    // Clean up existing NPCs first
+    this.cleanupNPCs();
+
+    // Get NPC data for this location
+    const npcConfigs = getNPCsForLocation(locationId);
+
+    // Create NPC instances
+    npcConfigs.forEach(config => {
+      const npc = new NPC(
+        this.scene,
+        config.position.x,
+        config.position.y,
+        config
+      );
+      this.npcs.push(npc);
+    });
+
+    console.log(`Spawned ${this.npcs.length} NPCs in ${locationId}`);
+  }
+
+  /**
+   * Update all NPCs
+   * @param {number} time
+   * @param {number} delta
+   */
+  updateNPCs(time, delta) {
+    this.npcs.forEach(npc => {
+      npc.update(time, delta);
+    });
+  }
+
+  /**
+   * Get all NPCs in current location
+   * @returns {array}
+   */
+  getNPCs() {
+    return this.npcs;
+  }
+
+  /**
+   * Check if player is near any NPC
+   * @param {object} playerPosition - {x, y}
+   * @param {number} distance - Detection distance
+   * @returns {NPC|null} Nearest NPC if within distance, null otherwise
+   */
+  checkNPCProximity(playerPosition, distance = 60) {
+    let nearestNPC = null;
+    let nearestDistance = Infinity;
+
+    this.npcs.forEach(npc => {
+      if (npc.isNearPosition(playerPosition, distance)) {
+        const npcPos = npc.getPosition();
+        const dx = npcPos.x - playerPosition.x;
+        const dy = npcPos.y - playerPosition.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < nearestDistance) {
+          nearestDistance = dist;
+          nearestNPC = npc;
+        }
+      }
+    });
+
+    return nearestNPC;
+  }
+
+  /**
+   * Clean up NPCs
+   */
+  cleanupNPCs() {
+    this.npcs.forEach(npc => {
+      if (npc && npc.destroy) {
+        npc.destroy();
+      }
+    });
+    this.npcs = [];
+  }
+
+  /**
    * Check if player is near a transition zone
    * @param {object} playerPosition - {x, y}
    * @returns {object|null} Transition data if near, null otherwise
@@ -321,6 +410,9 @@ export default class LocationSystem {
    * Clean up current location resources
    */
   cleanupLocation() {
+    // Destroy NPCs
+    this.cleanupNPCs();
+
     // Destroy obstacles
     this.obstacles.forEach(obj => {
       if (obj && obj.destroy) {

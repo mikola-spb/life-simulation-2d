@@ -101,6 +101,142 @@ This programmatic sprite approach serves as Phase 2 foundation. Future phases ca
 
 ---
 
+## Task 3: Basic NPC AI and Dialog System
+
+**Status**: Completed
+**Date**: 2025-10-01
+
+### Implementation
+
+Created a comprehensive NPC (Non-Player Character) system with AI behaviors and an HTML-based dialog system for player-NPC interactions.
+
+### Key Components
+
+1. **NPC Entity** (`src/entities/NPC.js`)
+   - Full character entity using appearance system
+   - Multiple AI behaviors: idle, wander
+   - Dialog support with interaction detection
+   - Physics-enabled with collision
+   - Immovable bodies (NPCs don't get pushed by player)
+
+2. **DialogSystem** (`src/systems/DialogSystem.js`)
+   - HTML overlay dialog UI (better text rendering than Phaser)
+   - Semi-transparent modal background
+   - Styled dialog box with NPC name, text, and continue button
+   - Keyboard input support (Space, Enter, ESC)
+   - Touch-friendly button interface
+   - Multi-page dialog support
+
+3. **NPC Data** (`src/data/npcs.js`)
+   - Predefined NPCs with unique appearances, behaviors, and dialog
+   - NPCs distributed across locations (Shop, Park, Street, etc.)
+   - Configured spawn points and wander bounds
+
+4. **Game Integration** (`src/scenes/GameScene.js`)
+   - DialogSystem initialization
+   - NPC proximity detection (60 units)
+   - Interaction prompts when near NPCs
+   - "E" key or touch to interact
+   - Player movement blocked during dialog
+   - NPC updates managed by LocationSystem
+
+### NPC Behaviors
+
+**Idle Behavior**:
+- NPC stays in place
+- No movement
+- Default behavior for stationary NPCs (e.g., shopkeepers)
+
+**Wander Behavior**:
+- Random direction changes every 3 seconds
+- Configurable speed and wander bounds
+- NPCs can walk around designated areas
+- Stops when player interacts
+
+### Dialog System Features
+
+- **Visual Design**: Blue gradient background, gold NPC name, white text
+- **Interaction Flow**:
+  1. Player approaches NPC
+  2. Prompt appears: "Talk (E)"
+  3. Press E to open dialog
+  4. Read dialog pages
+  5. Space/Enter to continue, ESC to close
+- **Blocking**: Player cannot move or change locations while dialog active
+- **Callbacks**: Supports onClose callback for quest/trigger systems
+
+### Technical Details
+
+**NPC Creation**:
+```javascript
+const npc = new NPC(scene, x, y, {
+  id: 'shopkeeper',
+  name: 'Shop Keeper',
+  appearance: { skin: 'medium', hair: 'brown' },
+  dialog: ['Welcome!', 'Come back anytime!'],
+  behavior: 'idle'
+});
+```
+
+**Dialog Usage**:
+```javascript
+dialogSystem.show({
+  npcName: 'Shop Keeper',
+  pages: ['Hello!', 'How can I help?'],
+  onClose: () => npc.endInteraction()
+});
+```
+
+### Testing
+
+- **Unit Tests**:
+  - NPC.test.js: 27 tests (100% passing)
+    - Constructor, behaviors (idle/wander), interaction, position methods
+  - DialogSystem.test.js: 27 tests (100% passing)
+    - UI creation, show/hide, pagination, keyboard input, cleanup
+  - Total: 54 new unit tests
+
+- **Build Status**: Successful (9.16s, 334.90 KB gzipped)
+
+### Integration Points
+
+1. **Appearance System**: NPCs use same appearance customization as player
+2. **LocationSystem**:
+   - Spawns/despawns NPCs per location
+   - Manages NPC updates
+   - Provides proximity detection
+3. **InputController**: Added "E" key for NPC interaction
+4. **GameScene**: Orchestrates NPC interactions and dialog flow
+
+### Files Created
+- `src/entities/NPC.js` (229 lines)
+- `src/systems/DialogSystem.js` (290 lines)
+- `src/data/npcs.js` (NPC definitions)
+- `src/entities/NPC.test.js` (317 lines, 27 tests)
+- `src/systems/DialogSystem.test.js` (27 tests)
+- `e2e/npc-interaction.spec.js` (E2E tests for NPCs)
+
+### Files Modified
+- `src/scenes/GameScene.js` (NPC interaction logic)
+- `src/systems/InputController.js` (Added "E" key)
+- `src/systems/LocationSystem.js` (NPC spawning and management)
+
+### Challenges Resolved
+
+1. **Phaser Import in Tests**: Removed unnecessary Phaser import from NPC.js that caused test failures
+2. **DialogSystem Cleanup**: Fixed destroy() method to properly handle HTML element removal without null pointer errors
+3. **Test Scope Issues**: Fixed NPC test references to use actual sprite instances
+
+### Future Enhancements
+
+- **Advanced AI**: Scheduled behaviors (NPCs move between locations at certain times)
+- **Dialog Trees**: Branching conversations with player choices
+- **Quest System**: NPCs can give and track quests
+- **Relationship System**: NPCs remember interactions with player
+- **Speech Bubbles**: Overhead text for ambient NPC chatter
+
+---
+
 # Phase 1 - Foundation
 
 **Status**: Completed

@@ -3,6 +3,7 @@ import Player from '../entities/Player.js';
 import InputController from '../systems/InputController.js';
 import SaveSystem from '../systems/SaveSystem.js';
 import LocationSystem from '../systems/LocationSystem.js';
+import DialogSystem from '../systems/DialogSystem.js';
 
 /**
  * GameScene - Main game scene where gameplay happens
@@ -14,9 +15,11 @@ export default class GameScene extends Phaser.Scene {
     this.inputController = null;
     this.saveSystem = null;
     this.locationSystem = null;
+    this.dialogSystem = null;
     this.autoSaveTimer = null;
     this.obstacles = []; // Store obstacles for later collider setup (deprecated - now handled by LocationSystem)
     this.isTransitioning = false;
+    this.nearbyNPC = null;
   }
 
   create() {
@@ -24,6 +27,7 @@ export default class GameScene extends Phaser.Scene {
     this.saveSystem = new SaveSystem();
     this.inputController = new InputController(this);
     this.locationSystem = new LocationSystem(this);
+    this.dialogSystem = new DialogSystem(this);
 
     // Try to load saved game to get starting location
     const savedGameState = this.saveSystem.load();
@@ -111,8 +115,16 @@ export default class GameScene extends Phaser.Scene {
   /**
    * Update game state
    */
-  update() {
+  update(time, delta) {
     if (!this.player || !this.inputController || this.isTransitioning) {
+      return;
+    }
+
+    // Update dialog system
+    this.dialogSystem.update();
+
+    // If dialog is active, block player movement and NPC interaction
+    if (this.dialogSystem.getIsActive()) {
       return;
     }
 
@@ -129,14 +141,80 @@ export default class GameScene extends Phaser.Scene {
     // Update player
     this.player.update();
 
-    // Check for nearby transitions
-    const playerPos = this.player.getPosition();
-    const nearbyTransition = this.locationSystem.checkTransitionProximity(playerPos);
+    // Update NPCs
+    this.locationSystem.updateNPCs(time, delta);
 
-    if (nearbyTransition) {
-      this.locationSystem.showInteractionPrompt(nearbyTransition);
+    // Check for nearby NPCs and transitions
+    const playerPos = this.player.getPosition();
+
+    // Priority 1: Check for nearby NPCs
+    this.nearbyNPC = this.locationSystem.checkNPCProximity(playerPos);
+
+    if (this.nearbyNPC) {
+      // Show NPC interaction prompt
+      this.showNPCInteractionPrompt(this.nearbyNPC);
+
+      // Check for interaction input
+      if (this.inputController.isInteractPressed()) {
+        this.interactWithNPC(this.nearbyNPC);
+      }
     } else {
-      this.locationSystem.hideInteractionPrompt();
+      // Priority 2: Check for nearby transitions
+      const nearbyTransition = this.locationSystem.checkTransitionProximity(playerPos);
+
+      if (nearbyTransition) {
+        this.locationSystem.showInteractionPrompt(nearbyTransition);
+      } else {
+        this.locationSystem.hideInteractionPrompt();
+      }
+    }
+  }
+
+  /**
+   * Show NPC interaction prompt
+   * @param {NPC} npc
+   */
+  showNPCInteractionPrompt(npc) {
+    // Hide any existing transition prompts
+    this.locationSystem.hideInteractionPrompt();
+
+    // Show NPC-specific prompt using LocationSystem's interaction prompt
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const promptText = isTouchDevice
+      ? `Tap to talk to ${npc.getName()}`
+      : `Press E to talk to ${npc.getName()}`;
+
+    this.locationSystem.showInteractionPrompt({
+      interactionLabel: promptText,
+      key: 'E'
+    });
+  }
+
+  /**
+   * Interact with an NPC
+   * @param {NPC} npc
+   */
+  interactWithNPC(npc) {
+    if (!npc || this.dialogSystem.getIsActive()) {
+      return;
+    }
+
+    // Start NPC interaction state
+    npc.startInteraction();
+
+    // Show dialog
+    const dialog = npc.getDialog();
+    if (dialog && dialog.length > 0) {
+      this.dialogSystem.show({
+        npcName: npc.getName(),
+        pages: dialog,
+        onClose: () => {
+          // End NPC interaction state
+          npc.endInteraction();
+          // Hide interaction prompt
+          this.locationSystem.hideInteractionPrompt();
+        }
+      });
     }
   }
 
@@ -243,6 +321,9 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.locationSystem) {
       this.locationSystem.destroy();
+    }
+    if (this.dialogSystem) {
+      this.dialogSystem.destroy();
     }
     if (this.autoSaveTimer) {
       this.autoSaveTimer.remove();

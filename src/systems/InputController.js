@@ -19,6 +19,7 @@ export default class InputController {
       left: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D)
     };
+    this.interactKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     // Virtual joystick for touch controls
     this.joystick = null;
@@ -161,6 +162,14 @@ export default class InputController {
    */
   getDirection() {
     return this.direction;
+  }
+
+  /**
+   * Check if interact key was just pressed
+   * @returns {boolean}
+   */
+  isInteractPressed() {
+    return Phaser.Input.Keyboard.JustDown(this.interactKey);
   }
 
   /**
