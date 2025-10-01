@@ -1,4 +1,16 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock NPC and SpriteGenerator to avoid Phaser imports
+vi.mock('../entities/NPC.js', () => ({
+  default: vi.fn()
+}));
+
+vi.mock('../utils/SpriteGenerator.js', () => ({
+  default: {
+    createCharacter: vi.fn()
+  }
+}));
+
 import LocationSystem from './LocationSystem.js';
 import { LOCATIONS } from '../data/locations.js';
 

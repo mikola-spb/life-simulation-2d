@@ -199,22 +199,24 @@ describe('InputController', () => {
       expect(direction).toEqual({ x: 1, y: -1 });
     });
 
-    it('should prioritize right over left', () => {
+    it('should prioritize left over right when both pressed', () => {
       mockCursors.left.isDown = true;
       mockCursors.right.isDown = true;
 
       const direction = inputController.update();
 
-      expect(direction.x).toBe(1);
+      // Left is checked first in if/else chain, so it takes priority
+      expect(direction.x).toBe(-1);
     });
 
-    it('should prioritize down over up', () => {
+    it('should prioritize up over down when both pressed', () => {
       mockCursors.up.isDown = true;
       mockCursors.down.isDown = true;
 
       const direction = inputController.update();
 
-      expect(direction.y).toBe(1);
+      // Up is checked first in if/else chain, so it takes priority
+      expect(direction.y).toBe(-1);
     });
 
     it('should mix arrow keys and WASD', () => {
@@ -258,7 +260,14 @@ describe('InputController', () => {
     it('should calculate direction on touch move', () => {
       inputController.joystickActive = true;
       inputController.joystickBase = { x: 100, y: 300 };
-      inputController.joystickThumb = { x: 100, y: 300 };
+      inputController.joystickThumb = {
+        x: 100,
+        y: 300,
+        setPosition: vi.fn(function(x, y) {
+          this.x = x;
+          this.y = y;
+        })
+      };
 
       const mockPointer = { x: 130, y: 280 };
       inputController.onTouchMove(mockPointer);

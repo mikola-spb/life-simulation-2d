@@ -1,4 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Mock Phaser to avoid canvas initialization errors
+vi.mock('phaser', () => ({
+  default: {
+    GameObjects: {
+      Container: class Container {
+        constructor() {
+          this.list = [];
+        }
+        add(obj) {
+          this.list.push(obj);
+        }
+      }
+    }
+  }
+}));
+
 import SpriteGenerator from './SpriteGenerator.js';
 import Appearance from '../entities/Appearance.js';
 

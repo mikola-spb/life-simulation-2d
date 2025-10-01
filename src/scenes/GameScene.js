@@ -55,9 +55,9 @@ export default class GameScene extends Phaser.Scene {
     // Add UI instructions
     this.addInstructions();
 
-    // Set up auto-save (every 30 seconds)
+    // Set up auto-save (configurable interval, default 30 seconds)
     this.autoSaveTimer = this.time.addEvent({
-      delay: 30000,
+      delay: GameConfig.storage.autoSaveInterval,
       callback: this.autoSave,
       callbackScope: this,
       loop: true
@@ -68,19 +68,67 @@ export default class GameScene extends Phaser.Scene {
       this.saveGame();
     });
 
-    // Add keyboard shortcuts
-    this.input.keyboard.on('keydown-S', () => {
-      if (this.input.keyboard.checkDown(this.input.keyboard.addKey('CTRL'))) {
-        this.saveGame();
-      }
-    });
-
     // Add interaction key listener
     this.input.keyboard.on('keydown-E', () => {
       this.handleInteraction();
     });
+
+    // Add UI save button
+    this.addSaveButton();
   }
 
+  /**
+   * Add UI save button
+   */
+  addSaveButton() {
+    // Create save button HTML element
+    const saveButton = document.createElement('button');
+    saveButton.id = 'save-button';
+    saveButton.textContent = '💾 Save Game';
+    saveButton.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s;
+      z-index: 100;
+    `;
+
+    // Hover effects
+    saveButton.onmouseover = () => {
+      saveButton.style.transform = 'scale(1.05)';
+      saveButton.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
+    };
+    saveButton.onmouseout = () => {
+      saveButton.style.transform = 'scale(1)';
+      saveButton.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+    };
+
+    // Click handler
+    saveButton.onclick = () => {
+      this.saveGame();
+      // Visual feedback
+      saveButton.textContent = '✓ Saved!';
+      setTimeout(() => {
+        saveButton.textContent = '💾 Save Game';
+      }, 2000);
+    };
+
+    // Add to document
+    document.body.appendChild(saveButton);
+
+    // Store reference for cleanup
+    this.saveButton = saveButton;
+  }
 
   /**
    * Add on-screen instructions
@@ -88,8 +136,8 @@ export default class GameScene extends Phaser.Scene {
   addInstructions() {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     const instructionText = isTouchDevice
-      ? 'Touch left side of screen to move'
-      : 'Use WASD or Arrow Keys to move\nCtrl+S to save manually';
+      ? 'Touch left side to move, tap NPCs to talk'
+      : 'Use WASD/Arrow Keys to move, E to interact';
 
     const instructions = this.add.text(16, 16, instructionText, {
       font: '16px Arial',
@@ -327,6 +375,10 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.autoSaveTimer) {
       this.autoSaveTimer.remove();
+    }
+    if (this.saveButton && this.saveButton.parentNode) {
+      this.saveButton.parentNode.removeChild(this.saveButton);
+      this.saveButton = null;
     }
   }
 }

@@ -20,7 +20,8 @@ export const GameConfig = {
 
   // Storage keys
   storage: {
-    saveKey: 'lifesim_save_v1'
+    saveKey: 'lifesim_save_v1',
+    autoSaveInterval: 30000 // Auto-save every 30 seconds (can be reduced for testing)
   },
 
   // Game version
