@@ -5,6 +5,8 @@ import InputController from '../systems/InputController.js';
 import SaveSystem from '../systems/SaveSystem.js';
 import LocationSystem from '../systems/LocationSystem.js';
 import DialogSystem from '../systems/DialogSystem.js';
+import NeedsSystem from '../systems/NeedsSystem.js';
+import NeedsUI from '../ui/NeedsUI.js';
 
 /**
  * GameScene - Main game scene where gameplay happens
@@ -17,6 +19,8 @@ export default class GameScene extends Phaser.Scene {
     this.saveSystem = null;
     this.locationSystem = null;
     this.dialogSystem = null;
+    this.needsSystem = null;
+    this.needsUI = null;
     this.autoSaveTimer = null;
     this.obstacles = []; // Store obstacles for later collider setup (deprecated - now handled by LocationSystem)
     this.isTransitioning = false;
@@ -45,9 +49,17 @@ export default class GameScene extends Phaser.Scene {
     // Create obstacle colliders (player exists now)
     this.locationSystem.createObstacleColliders(this.player.sprite);
 
+    // Initialize needs system (after player creation)
+    this.needsSystem = new NeedsSystem(this, this.player);
+
     // Load saved player state (position and appearance)
     if (savedGameState && savedGameState.player) {
       this.player.loadSaveData(savedGameState.player);
+    }
+
+    // Load saved needs state
+    if (savedGameState && savedGameState.needs) {
+      this.needsSystem.loadSaveData(savedGameState.needs);
     }
 
     // Set up camera to follow player
@@ -55,6 +67,9 @@ export default class GameScene extends Phaser.Scene {
 
     // Add UI instructions
     this.addInstructions();
+
+    // Initialize needs UI (after instructions)
+    this.needsUI = new NeedsUI(this);
 
     // Set up auto-save (configurable interval, default 30 seconds)
     this.autoSaveTimer = this.time.addEvent({
@@ -167,6 +182,16 @@ export default class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (!this.player || !this.inputController || this.isTransitioning) {
       return;
+    }
+
+    // Update needs system
+    if (this.needsSystem) {
+      this.needsSystem.update(time, delta);
+    }
+
+    // Update needs UI
+    if (this.needsUI && this.needsSystem) {
+      this.needsUI.update(this.needsSystem.getHunger(), this.needsSystem.getEnergy());
     }
 
     // Update dialog system
@@ -322,6 +347,7 @@ export default class GameScene extends Phaser.Scene {
     const gameState = {
       player: this.player.getSaveData(),
       currentLocationId: this.locationSystem.getCurrentLocationId(),
+      needs: this.needsSystem ? this.needsSystem.getSaveData() : null,
       timestamp: Date.now()
     };
 
@@ -373,6 +399,9 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.dialogSystem) {
       this.dialogSystem.destroy();
+    }
+    if (this.needsUI) {
+      this.needsUI.destroy();
     }
     if (this.autoSaveTimer) {
       this.autoSaveTimer.remove();
