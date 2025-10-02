@@ -106,14 +106,24 @@ export default class GameScene extends Phaser.Scene {
       this.handleInteraction();
     });
 
-    // Add UI save button
-    this.addSaveButton();
+    // Add UI buttons (save and new game)
+    this.addUIButtons();
   }
 
   /**
-   * Add UI save button
+   * Add UI buttons (Save Game and New Game)
    */
-  addSaveButton() {
+  addUIButtons() {
+    // Remove any existing buttons first (in case of scene restart)
+    const existingSaveButton = document.getElementById('save-button');
+    if (existingSaveButton) {
+      existingSaveButton.parentNode.removeChild(existingSaveButton);
+    }
+    const existingNewGameButton = document.getElementById('new-game-button');
+    if (existingNewGameButton) {
+      existingNewGameButton.parentNode.removeChild(existingNewGameButton);
+    }
+
     // Create save button HTML element
     const saveButton = document.createElement('button');
     saveButton.id = 'save-button';
@@ -136,7 +146,7 @@ export default class GameScene extends Phaser.Scene {
       z-index: 100;
     `;
 
-    // Hover effects
+    // Hover effects for save button
     saveButton.onmouseover = () => {
       saveButton.style.transform = 'scale(1.05)';
       saveButton.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
@@ -146,7 +156,7 @@ export default class GameScene extends Phaser.Scene {
       saveButton.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
     };
 
-    // Click handler
+    // Click handler for save button
     saveButton.onclick = () => {
       this.saveGame();
       // Visual feedback
@@ -156,11 +166,53 @@ export default class GameScene extends Phaser.Scene {
       }, 2000);
     };
 
-    // Add to document
-    document.body.appendChild(saveButton);
+    // Create new game button
+    const newGameButton = document.createElement('button');
+    newGameButton.id = 'new-game-button';
+    newGameButton.textContent = '🔄 New Game';
+    newGameButton.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 160px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s;
+      z-index: 100;
+    `;
 
-    // Store reference for cleanup
+    // Hover effects for new game button
+    newGameButton.onmouseover = () => {
+      newGameButton.style.transform = 'scale(1.05)';
+      newGameButton.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
+    };
+    newGameButton.onmouseout = () => {
+      newGameButton.style.transform = 'scale(1)';
+      newGameButton.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+    };
+
+    // Click handler for new game button
+    newGameButton.onclick = () => {
+      // Show confirmation dialog
+      if (confirm('Are you sure you want to start a new game? All progress will be lost!')) {
+        this.resetGame();
+      }
+    };
+
+    // Add buttons to document
+    document.body.appendChild(saveButton);
+    document.body.appendChild(newGameButton);
+
+    // Store references for cleanup
     this.saveButton = saveButton;
+    this.newGameButton = newGameButton;
   }
 
   /**
@@ -434,6 +486,17 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Reset game to initial state (new game)
+   */
+  resetGame() {
+    // Clear all saved data
+    this.saveSystem.deleteSave();
+
+    // Restart the scene to reinitialize everything
+    this.scene.restart();
+  }
+
+  /**
    * Clean up scene
    */
   shutdown() {
@@ -462,6 +525,10 @@ export default class GameScene extends Phaser.Scene {
     if (this.saveButton && this.saveButton.parentNode) {
       this.saveButton.parentNode.removeChild(this.saveButton);
       this.saveButton = null;
+    }
+    if (this.newGameButton && this.newGameButton.parentNode) {
+      this.newGameButton.parentNode.removeChild(this.newGameButton);
+      this.newGameButton = null;
     }
   }
 }
