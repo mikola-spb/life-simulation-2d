@@ -7,6 +7,8 @@ import LocationSystem from '../systems/LocationSystem.js';
 import DialogSystem from '../systems/DialogSystem.js';
 import NeedsSystem from '../systems/NeedsSystem.js';
 import NeedsUI from '../ui/NeedsUI.js';
+import TimeSystem from '../systems/TimeSystem.js';
+import TimeUI from '../ui/TimeUI.js';
 
 /**
  * GameScene - Main game scene where gameplay happens
@@ -21,10 +23,13 @@ export default class GameScene extends Phaser.Scene {
     this.dialogSystem = null;
     this.needsSystem = null;
     this.needsUI = null;
+    this.timeSystem = null;
+    this.timeUI = null;
     this.autoSaveTimer = null;
     this.obstacles = []; // Store obstacles for later collider setup (deprecated - now handled by LocationSystem)
     this.isTransitioning = false;
     this.nearbyNPC = null;
+    this.currentDayNightTint = null; // Track current tint to avoid unnecessary updates
   }
 
   create() {
@@ -33,6 +38,7 @@ export default class GameScene extends Phaser.Scene {
     this.inputController = new InputController(this);
     this.locationSystem = new LocationSystem(this);
     this.dialogSystem = new DialogSystem(this);
+    this.timeSystem = new TimeSystem(this);
 
     // Try to load saved game to get starting location
     const savedGameState = this.saveSystem.load();
@@ -62,6 +68,11 @@ export default class GameScene extends Phaser.Scene {
       this.needsSystem.loadSaveData(savedGameState.needs);
     }
 
+    // Load saved time state
+    if (savedGameState && savedGameState.time) {
+      this.timeSystem.loadSaveData(savedGameState.time);
+    }
+
     // Set up camera to follow player
     this.cameras.main.startFollow(this.player.sprite);
 
@@ -70,6 +81,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Initialize needs UI (after instructions)
     this.needsUI = new NeedsUI(this);
+
+    // Initialize time UI
+    this.timeUI = new TimeUI(this);
+
+    // Apply initial day/night tint
+    this.updateDayNightCycle();
 
     // Set up auto-save (configurable interval, default 30 seconds)
     this.autoSaveTimer = this.time.addEvent({
@@ -184,6 +201,18 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    // Update time system
+    if (this.timeSystem) {
+      this.timeSystem.update(time, delta);
+      // Update day/night cycle visual effects
+      this.updateDayNightCycle();
+    }
+
+    // Update time UI
+    if (this.timeUI && this.timeSystem) {
+      this.timeUI.update(this.timeSystem.getDay(), this.timeSystem.getTimeString());
+    }
+
     // Update needs system
     if (this.needsSystem) {
       this.needsSystem.update(time, delta);
@@ -241,6 +270,26 @@ export default class GameScene extends Phaser.Scene {
       } else {
         this.locationSystem.hideInteractionPrompt();
       }
+    }
+  }
+
+  /**
+   * Update day/night cycle visual effects
+   * Changes background tint based on current time
+   */
+  updateDayNightCycle() {
+    if (!this.timeSystem) {
+      return;
+    }
+
+    // Determine target tint based on time of day
+    const isNight = this.timeSystem.isNightTime();
+    const targetTint = isNight ? GameConfig.time.nightTint : GameConfig.time.dayTint;
+
+    // Only update if tint has changed (avoid unnecessary camera updates)
+    if (this.currentDayNightTint !== targetTint) {
+      this.currentDayNightTint = targetTint;
+      this.cameras.main.setBackgroundColor(targetTint);
     }
   }
 
@@ -348,6 +397,7 @@ export default class GameScene extends Phaser.Scene {
       player: this.player.getSaveData(),
       currentLocationId: this.locationSystem.getCurrentLocationId(),
       needs: this.needsSystem ? this.needsSystem.getSaveData() : null,
+      time: this.timeSystem ? this.timeSystem.getSaveData() : null,
       timestamp: Date.now()
     };
 
@@ -402,6 +452,9 @@ export default class GameScene extends Phaser.Scene {
     }
     if (this.needsUI) {
       this.needsUI.destroy();
+    }
+    if (this.timeUI) {
+      this.timeUI.destroy();
     }
     if (this.autoSaveTimer) {
       this.autoSaveTimer.remove();
